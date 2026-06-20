@@ -3,103 +3,125 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Watercolor Strings — Generative Audio Art</title>
+  <meta name="description" content="Paintune — a generative watercolor art application that turns live audio into flowing paint on a digital canvas.">
+  <title>Paintune — Audio Watercolor Art</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/src/index.css">
 </head>
 <body>
-  <!-- Main Grid App Layout -->
+
+  <!-- ── Master Layout Grid ────────────────────────────────────────── -->
   <div id="app-layout">
-    <!-- Left Section: Canvas Wrapper -->
+
+    <!-- Left: Canvas Zone (80 %) -->
     <main id="canvas-wrapper">
       <canvas id="watercolor-canvas"></canvas>
     </main>
 
-    <!-- Right Section: Sidebar Dashboard -->
+    <!-- Right: Sidebar Controls (20 %) -->
     <aside id="sidebar-panel">
+
+      <!-- Brand -->
       <div class="sidebar-header">
-        <h1 class="logo">Watercolor Strings</h1>
-        <p class="tagline">Audio-Generative Painting</p>
+        <h1 class="logo">Paintune</h1>
+        <p class="tagline">Audio Watercolor Art</p>
       </div>
 
-      <!-- Settings / Options Area -->
+      <!-- Scrollable content -->
       <div class="sidebar-body">
-        <!-- Start options tab -->
-        <div id="connection-status-box" class="card">
+
+        <!-- ── Sound Input Card ──────────────────────────────────── -->
+        <div class="card" id="connection-status-box">
           <h3>Sound Input</h3>
-          <div class="start-options">
-            <button id="start-btn" class="btn btn-primary btn-block">Start Listening</button>
-            <p class="mic-disclaimer">Requires microphone permission. Processing is computed local-only for complete privacy.</p>
+
+          <div class="start-options" id="start-options">
+            <button id="start-btn" class="btn btn-primary">Start Listening</button>
+            <p class="mic-disclaimer">Requires microphone access. All audio is processed locally — nothing is sent anywhere.</p>
           </div>
-          
+
           <div id="listening-state" class="hidden">
             <div class="pulse-status">
               <span class="pulse-dot"></span>
-              <span id="status-text">Analyzing sound...</span>
+              <span id="status-text">Listening…</span>
             </div>
           </div>
         </div>
 
-        <!-- Note & Audio Dashboard (Visualised) -->
+        <!-- ── Active Note Badge ─────────────────────────────────── -->
+        <div class="card">
+          <h3>Current Note</h3>
+          <div id="active-note-badge">
+            <div class="badge-color-swatch" id="badge-swatch"></div>
+            <div class="badge-label">
+              <span class="badge-note-name" id="badge-note">—</span>
+              <span class="badge-pigment-name" id="badge-pigment">No signal</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Musical Metrics ───────────────────────────────────── -->
         <div class="card metrics-card">
           <h3>Musical Metrics</h3>
           <div class="metrics-grid">
             <div class="metric-box">
-              <span class="metric-label">Note</span>
-              <span id="metric-note" class="metric-value">—</span>
-            </div>
-            <div class="metric-box">
-              <span class="metric-label">Clarity</span>
-              <span id="metric-clarity" class="metric-value">0%</span>
+              <span class="metric-label">Pitch</span>
+              <span id="metric-pitch" class="metric-value">— Hz</span>
             </div>
             <div class="metric-box">
               <span class="metric-label">Volume</span>
               <span id="metric-volume" class="metric-value">0%</span>
             </div>
             <div class="metric-box">
-              <span class="metric-label">Pitch</span>
-              <span id="metric-pitch" class="metric-value">0 Hz</span>
+              <span class="metric-label">Clarity</span>
+              <span id="metric-clarity" class="metric-value">0%</span>
+            </div>
+            <div class="metric-box">
+              <span class="metric-label">Strokes</span>
+              <span id="metric-strokes" class="metric-value">0</span>
             </div>
           </div>
         </div>
 
-        <!-- Palette reference display -->
+        <!-- ── Pigment Spectrum ──────────────────────────────────── -->
         <div class="card palette-card">
           <h3>Pigment Spectrum</h3>
-          <div class="color-wheel-grid">
-            <span class="pigment-dot" style="background:#183059" title="C (Indigo Blue)"></span>
-            <span class="pigment-dot" style="background:#7a273e" title="C# (Crimson Alizarin)"></span>
-            <span class="pigment-dot" style="background:#c47233" title="D (Raw Sienna)"></span>
-            <span class="pigment-dot" style="background:#558279" title="D# (Teal Green)"></span>
-            <span class="pigment-dot" style="background:#d9ad43" title="E (Yellow Ochre)"></span>
-            <span class="pigment-dot" style="background:#c95b68" title="F (Rose Madder)"></span>
-            <span class="pigment-dot" style="background:#34654d" title="F# (Viridian)"></span>
-            <span class="pigment-dot" style="background:#29588c" title="G (Cobalt Blue)"></span>
-            <span class="pigment-dot" style="background:#5e4173" title="G# (Cobalt Violet)"></span>
-            <span class="pigment-dot" style="background:#db6b3d" title="A (Burnt Orange)"></span>
-            <span class="pigment-dot" style="background:#3c474d" title="A# (Payne's Grey)"></span>
-            <span class="pigment-dot" style="background:#9c9e4f" title="B (Olive Green)"></span>
+          <div class="color-wheel-grid" id="pigment-grid">
+            <span class="pigment-dot" data-note="C"  style="background:#183059" title="C — Indigo Blue"></span>
+            <span class="pigment-dot" data-note="C#" style="background:#7a273e" title="C# — Crimson Alizarin"></span>
+            <span class="pigment-dot" data-note="D"  style="background:#c47233" title="D — Raw Sienna"></span>
+            <span class="pigment-dot" data-note="D#" style="background:#558279" title="D# — Teal Green"></span>
+            <span class="pigment-dot" data-note="E"  style="background:#d9ad43" title="E — Yellow Ochre"></span>
+            <span class="pigment-dot" data-note="F"  style="background:#c95b68" title="F — Rose Madder"></span>
+            <span class="pigment-dot" data-note="F#" style="background:#34654d" title="F# — Viridian"></span>
+            <span class="pigment-dot" data-note="G"  style="background:#29588c" title="G — Cobalt Blue"></span>
+            <span class="pigment-dot" data-note="G#" style="background:#5e4173" title="G# — Cobalt Violet"></span>
+            <span class="pigment-dot" data-note="A"  style="background:#db6b3d" title="A — Burnt Orange"></span>
+            <span class="pigment-dot" data-note="A#" style="background:#3c474d" title="A# — Payne's Grey"></span>
+            <span class="pigment-dot" data-note="B"  style="background:#9c9e4f" title="B — Olive Green"></span>
           </div>
         </div>
-      </div>
 
-      <!-- Actions Footer -->
+      </div><!-- / sidebar-body -->
+
+      <!-- ── Footer Actions ────────────────────────────────────────── -->
       <div class="sidebar-footer">
         <button id="clear-btn" class="btn btn-secondary">Clear Canvas</button>
-        <button id="save-btn" class="btn btn-secondary-accent">Export Painting</button>
+        <button id="save-btn" class="btn btn-ghost">Export Painting</button>
       </div>
-    </aside>
-  </div>
 
-  <!-- SVG Filter for Paper Grain / Texture -->
-  <svg class="hidden-svg">
-    <filter id="paper-texture">
-      <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="4" result="noise" />
-      <feDiffuseLighting in="noise" lighting-color="#ffffff" surfaceScale="1.5">
-        <feDistantLight azimuth="50" elevation="65" />
+    </aside><!-- / sidebar-panel -->
+  </div><!-- / app-layout -->
+
+  <!-- SVG Paper-Grain Filter -->
+  <svg class="hidden-svg" aria-hidden="true">
+    <filter id="paper-texture" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.045 0.05" numOctaves="5" seed="3" result="noise"/>
+      <feDiffuseLighting in="noise" lighting-color="#fff" surfaceScale="0.8" result="light">
+        <feDistantLight azimuth="45" elevation="70"/>
       </feDiffuseLighting>
-      <feBlend mode="multiply" in="SourceGraphic" in2="noise" result="blend" />
+      <feBlend in="SourceGraphic" in2="light" mode="multiply"/>
     </filter>
   </svg>
 
