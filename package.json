@@ -1,0 +1,14 @@
+{
+  "name": "paintune",
+  "version": "0.0.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "pitchy": "^4.0.2"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0"
+  }
+}

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Watercolor Strings — Generative Audio Art</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Fullscreen WebGL / Canvas Container -->
+  <div id="canvas-container">
+    <canvas id="watercolor-canvas"></canvas>
+  </div>
+
+  <!-- SVG Filter for Paper Grain / Texture -->
+  <svg class="hidden-svg">
+    <filter id="paper-texture">
+      <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="5" result="noise" />
+      <feDiffuseLighting in="noise" lighting-color="#fff" surfaceScale="2">
+        <feDistantLight azimuth="45" elevation="60" />
+      </feDiffuseLighting>
+      <feBlend mode="multiply" in="SourceGraphic" in2="noise" result="blend" />
+    </filter>
+  </svg>
+
+  <!-- UI Overlays -->
+  <div id="ui-container">
+    <!-- Intro / Start Screen -->
+    <div id="intro-screen" class="active">
+      <div class="intro-content">
+        <h1>Watercolor Strings</h1>
+        <p class="subtitle">Paint your performance. Play a note, strum a chord, and watch your music bleed into color.</p>
+        <button id="start-btn" class="btn btn-primary">Start Painting</button>
+        <p class="mic-note">Requires microphone access. All audio processing runs locally in your browser.</p>
+      </div>
+    </div>
+
+    <!-- Active App Controls (Header & Footer) -->
+    <header id="app-header" class="hidden">
+      <div class="logo">Watercolor Strings</div>
+      <div class="controls-right">
+        <button id="clear-btn" class="btn btn-secondary" title="Clear Canvas">Clear</button>
+        <button id="save-btn" class="btn btn-primary" title="Export Painting">Export PNG</button>
+      </div>
+    </header>
+
+    <footer id="app-footer" class="hidden">
+      <!-- Musical Status Panel -->
+      <div id="status-panel" class="glass">
+        <div class="status-indicator">
+          <span class="pulse-dot"></span>
+          <span id="status-text">Listening...</span>
+        </div>
+        <div class="audio-metrics">
+          <div class="metric"><span class="label">Note</span><span id="metric-note" class="value">—</span></div>
+          <div class="metric"><span class="label">Pitch</span><span id="metric-pitch" class="value">0 Hz</span></div>
+          <div class="metric"><span class="label">Volume</span><span id="metric-volume" class="value">0%</span></div>
+          <div class="metric"><span class="label">Clarity</span><span id="metric-clarity" class="value">0%</span></div>
+        </div>
+      </div>
+      <button id="toggle-stats-btn" class="btn btn-icon" title="Toggle Stats Overlay">
+        <svg viewBox="0 0 24 24" class="icon"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+      </button>
+    </footer>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
