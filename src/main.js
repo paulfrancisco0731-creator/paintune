@@ -2,14 +2,9 @@ import { AudioEngine } from './audio.js';
 import { WatercolorEngine, COLOR_PALETTE } from './watercolor.js';
 
 // DOM Elements
-const introScreen = document.getElementById('intro-screen');
 const startBtn = document.getElementById('start-btn');
-const appHeader = document.getElementById('app-header');
-const appFooter = document.getElementById('app-footer');
 const clearBtn = document.getElementById('clear-btn');
 const saveBtn = document.getElementById('save-btn');
-const toggleStatsBtn = document.getElementById('toggle-stats-btn');
-const statusPanel = document.getElementById('status-panel');
 const canvas = document.getElementById('watercolor-canvas');
 
 // Stats Display Elements
@@ -32,10 +27,6 @@ function init() {
   clearBtn.addEventListener('click', () => watercolorEngine.clear());
   saveBtn.addEventListener('click', exportPNG);
   
-  toggleStatsBtn.addEventListener('click', () => {
-    statusPanel.classList.toggle('collapsed');
-  });
-
   window.addEventListener('resize', () => {
     if (watercolorEngine) {
       watercolorEngine.resize();
@@ -49,23 +40,22 @@ function init() {
 async function startApp() {
   try {
     startBtn.disabled = true;
-    startBtn.innerText = "Initializing Mic...";
+    startBtn.innerText = "Initializing...";
     
     audioEngine = new AudioEngine();
     await audioEngine.start();
     
-    // Smooth transition between intro screen and paint canvas
-    introScreen.classList.add('hidden');
-    appHeader.classList.remove('hidden');
-    appFooter.classList.remove('hidden');
+    // Switch connection box buttons to listening state indicator
+    document.querySelector('.start-options').classList.add('hidden');
+    document.getElementById('listening-state').classList.remove('hidden');
     
     isRunning = true;
-    statusText.innerText = "Listening...";
+    statusText.innerText = "Analyzing sound...";
   } catch (err) {
     console.error("Audio Initialization Error:", err);
     alert("Could not start microphone. " + err.message);
     startBtn.disabled = false;
-    startBtn.innerText = "Start Painting";
+    startBtn.innerText = "Start Listening";
   }
 }
 

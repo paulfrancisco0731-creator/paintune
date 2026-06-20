@@ -82,61 +82,75 @@ export const COLOR_PALETTE = {
 };
 
 class WatercolorBlob {
-  constructor(x, y, r, g, b, initialRadius, maxSustain, spectralCentroid) {
+  constructor(x, y, r, g, b, initialRadius, velocityX, velocityY, centroid) {
     this.x = x;
     this.y = y;
     this.r = r;
     this.g = g;
     this.b = b;
     this.baseRadius = initialRadius;
-    this.currentRadius = initialRadius;
+    this.currentRadius = initialRadius * 0.4; // Start narrow like a brush tip contact
     
-    // Lifespan & Diffusion parameters
+    // Physics and life loops
     this.age = 0;
-    this.maxAge = 120 + Math.random() * 80; // duration of wet diffusion (frames)
-    this.sustain = maxSustain; // normalized sustain duration
+    this.maxAge = 40 + Math.random() * 30; // Shorter diffusion lifespan for fluid brush motion
     
-    // Diffusion rate: Centroid dictates texture/granulation/edge sharpness
-    this.granularity = spectralCentroid; // higher = sharper/more speckled edges
-    this.spreadRate = 0.5 + (1 - spectralCentroid) * 1.5; // low brightness spreads further/softer
+    // Flow/drift velocity mapping (moves with the velocity vector of the brush)
+    this.vx = velocityX * 0.4;
+    this.vy = velocityY * 0.4;
     
-    // Shape deformation array to build a organic fractal edge
-    this.numPoints = 64;
+    // Bleed / capillary action factors
+    this.bleedDirection = Math.random() * Math.PI * 2;
+    this.bleedForce = 0.5 + Math.random() * 1.5;
+    this.granularity = centroid; // High pitch = more granular pigment deposition
+
+    // Detailed organic contouring (128 steps for extreme organic fidelity)
+    this.numPoints = 96;
     this.angles = [];
     this.offsets = [];
+    this.velocities = []; // dynamic bleeding points
     
-    // Generate initial noisy circle offsets
-    const seed = Math.random() * 100;
+    const seed = Math.random() * 1000;
     for (let i = 0; i < this.numPoints; i++) {
       const angle = (i / this.numPoints) * Math.PI * 2;
       this.angles.push(angle);
-      // Generate initial organic offset using Simplex noise
-      const ox = Math.cos(angle);
-      const oy = Math.sin(angle);
-      const val = simplex.noise2D(ox * 1.5 + seed, oy * 1.5 + seed) * 0.15;
-      this.offsets.push(1.0 + val);
+      
+      // Seed noise for natural non-circular paint expansion
+      const nx = Math.cos(angle);
+      const ny = Math.sin(angle);
+      const noiseVal = simplex.noise2D(nx * 1.8 + seed, ny * 1.8 + seed);
+      
+      this.offsets.push(0.9 + noiseVal * 0.2);
+      this.velocities.push(0.01 + Math.random() * 0.04);
     }
   }
 
   update() {
     this.age++;
     if (this.age < this.maxAge) {
-      // Simulate wet spread
       const progress = this.age / this.maxAge;
-      // Spread slows down as the paint "dries" (logistic growth approximation)
-      const currentSpread = Math.sin(progress * Math.PI * 0.5) * this.baseRadius * this.spreadRate;
-      this.currentRadius = this.baseRadius + currentSpread;
       
-      // Gradually evolve the edge deformation (wet bleeding action)
+      // 1. Move the center along the brush drag direction (fades out as brush lifts)
+      this.x += this.vx * (1 - progress);
+      this.y += this.vy * (1 - progress);
+      
+      // 2. Expand the wetness blob (flow diffusion rate)
+      const expansion = Math.pow(progress, 0.4) * (this.baseRadius * 0.75);
+      this.currentRadius = (this.baseRadius * 0.25) + expansion;
+      
+      // 3. Bleed contours as paint flows into paper fibers (capillary action)
       for (let i = 0; i < this.numPoints; i++) {
         const angle = this.angles[i];
-        const ox = Math.cos(angle);
-        const oy = Math.sin(angle);
         
-        // Feed time/age into simplex to make edges bleed dynamic, not static
-        const timeFactor = this.age * 0.02;
-        const bleedVal = simplex.noise2D(ox * 2.0 + timeFactor, oy * 2.0 + timeFactor) * 0.08;
-        this.offsets[i] += bleedVal * (1 - progress); // less bleeding as it dries
+        // Simplex turbulence at contour boundaries
+        const nx = Math.cos(angle);
+        const ny = Math.sin(angle);
+        const flowNoise = simplex.noise2D(nx * 3.0 + this.age * 0.05, ny * 3.0 + this.age * 0.05) * 0.03;
+        
+        // Bleed direction affinity (gravitational / capillary bleed)
+        const directionalFlow = Math.cos(angle - this.bleedDirection) * 0.04 * this.bleedForce;
+        
+        this.offsets[i] += (this.velocities[i] + flowNoise + directionalFlow) * (1 - progress * 0.95);
       }
     }
   }
@@ -146,20 +160,20 @@ class WatercolorBlob {
   }
 
   draw(ctx) {
-    // When a blob is active, its opacity slowly moves from 1 to a stable resting opacity.
-    // When it finishes drying, it is drawn at this resting opacity on the dry layer.
-    const opacity = this.isDried() ? 0.8 : (1.0 - (this.age / this.maxAge) * 0.2);
+    const progress = this.age / this.maxAge;
+    // Opacity fades as paint is absorbed into paper teeth
+    const opacity = this.isDried() ? 0.9 : Math.max(0.1, 1.0 - progress * 0.2);
     if (opacity <= 0) return;
 
     ctx.save();
     ctx.beginPath();
     
-    // Build path using deformed offsets
+    // Draw organic deformed contour path
     for (let i = 0; i < this.numPoints; i++) {
       const angle = this.angles[i];
-      const radius = this.currentRadius * this.offsets[i];
-      const px = this.x + Math.cos(angle) * radius;
-      const py = this.y + Math.sin(angle) * radius;
+      const r = this.currentRadius * this.offsets[i];
+      const px = this.x + Math.cos(angle) * r;
+      const py = this.y + Math.sin(angle) * r;
       
       if (i === 0) {
         ctx.moveTo(px, py);
@@ -168,34 +182,38 @@ class WatercolorBlob {
       }
     }
     ctx.closePath();
-    ctx.clip(); // Restrict grading and granulation within the deformed outline
+    ctx.clip(); // Ensure all painting is masked to the fluid edges
 
-    // 1. Draw soft radial gradient representing wet diffusion bleed
-    const grad = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.currentRadius * 1.2);
-    const alpha = 0.18 * opacity; // Increased opacity for richer paint strokes
+    // Draw wet color gradient to represent natural pooling
+    const grad = ctx.createRadialGradient(
+      this.x - this.currentRadius * 0.1, // Offset center to simulate directional light/pools
+      this.y - this.currentRadius * 0.1, 
+      0, 
+      this.x, 
+      this.y, 
+      this.currentRadius
+    );
+
+    const baseAlpha = 0.28 * opacity; // Strong visible opacity
     
-    grad.addColorStop(0, `rgba(${this.r}, ${this.g}, ${this.b}, ${alpha})`);
-    grad.addColorStop(0.7, `rgba(${this.r}, ${this.g}, ${this.b}, ${alpha * 0.8})`);
-    
-    // Darker rim (watercolor pigment pooling at edges of water boundary)
-    const rimAlpha = alpha * (1.3 + this.granularity * 0.8);
-    grad.addColorStop(0.95, `rgba(${Math.max(0, this.r - 20)}, ${Math.max(0, this.g - 20)}, ${Math.max(0, this.b - 20)}, ${rimAlpha})`);
+    grad.addColorStop(0, `rgba(${this.r}, ${this.g}, ${this.b}, ${baseAlpha * 0.65})`);
+    grad.addColorStop(0.65, `rgba(${this.r}, ${this.g}, ${this.b}, ${baseAlpha * 0.5})`);
+    // Watercolor edges pool pigments forming a darker ring
+    const rimAlpha = baseAlpha * (1.6 + this.granularity * 0.6);
+    grad.addColorStop(0.92, `rgba(${Math.max(0, this.r - 28)}, ${Math.max(0, this.g - 28)}, ${Math.max(0, this.b - 28)}, ${rimAlpha})`);
     grad.addColorStop(1, `rgba(${this.r}, ${this.g}, ${this.b}, 0)`);
     
     ctx.fillStyle = grad;
     ctx.fill();
 
-    // 2. Draw micro-granulation texture (representing pigment graininess)
+    // Speckled grain deposition
     if (this.granularity > 0.3) {
-      ctx.fillStyle = `rgba(${Math.max(0, this.r - 30)}, ${Math.max(0, this.g - 30)}, ${Math.max(0, this.b - 30)}, ${0.015 * this.granularity * opacity})`;
-      // Quick stipple simulation for granulation
-      const granCount = Math.floor(this.currentRadius * 2);
-      for (let k = 0; k < granCount; k++) {
-        const randAngle = Math.random() * Math.PI * 2;
-        const randDist = Math.random() * this.currentRadius;
-        const gx = this.x + Math.cos(randAngle) * randDist;
-        const gy = this.y + Math.sin(randAngle) * randDist;
-        ctx.fillRect(gx, gy, 1.5, 1.5);
+      ctx.fillStyle = `rgba(${Math.max(0, this.r - 30)}, ${Math.max(0, this.g - 30)}, ${Math.max(0, this.b - 30)}, ${0.03 * this.granularity * opacity})`;
+      const numGrains = Math.floor(this.currentRadius * 1.5);
+      for (let k = 0; k < numGrains; k++) {
+        const theta = Math.random() * Math.PI * 2;
+        const rad = Math.random() * this.currentRadius;
+        ctx.fillRect(this.x + Math.cos(theta) * rad, this.y + Math.sin(theta) * rad, 1.2, 1.2);
       }
     }
 
@@ -208,50 +226,59 @@ export class WatercolorEngine {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
     
-    // Create an offscreen buffer canvas to store dried painting elements permanently
-    // preventing canvas slowdown from rendering millions of path nodes
     this.dryCanvas = document.createElement('canvas');
     this.dryCtx = this.dryCanvas.getContext('2d');
 
     this.blobs = [];
+    
+    // Smooth coordinate tracking for brush flow physics
+    this.brushX = 0;
+    this.brushY = 0;
+    this.lastBrushX = 0;
+    this.lastBrushY = 0;
+    
+    this.targetBrushX = 0;
+    this.targetBrushY = 0;
+    
     this.resize();
     this.clear();
     
-    // Dynamic brush travel coordinate (drifts over time or is mapped)
+    // Initialise coordinates to canvas center
     this.brushX = this.width / 2;
     this.brushY = this.height / 2;
-    this.targetBrushX = this.width / 2;
-    this.targetBrushY = this.height / 2;
+    this.lastBrushX = this.brushX;
+    this.lastBrushY = this.brushY;
+    
+    this.targetBrushX = this.brushX;
+    this.targetBrushY = this.brushY;
   }
 
   resize() {
-    this.width = window.innerWidth;
-    this.height = window.innerHeight;
-    
-    // Store dried contents before resize
+    // Responsive bounds matching wrapper bounds
+    const rect = this.canvas.getBoundingClientRect();
+    this.width = rect.width;
+    this.height = rect.height;
+
     const tempCanvas = document.createElement('canvas');
     tempCanvas.width = this.dryCanvas.width;
     tempCanvas.height = this.dryCanvas.height;
     const tempCtx = tempCanvas.getContext('2d');
     tempCtx.drawImage(this.dryCanvas, 0, 0);
 
-    // Apply dimensions to main canvas
     this.canvas.width = this.width;
     this.canvas.height = this.height;
 
-    // Apply to dry canvas buffer
     this.dryCanvas.width = this.width;
     this.dryCanvas.height = this.height;
     
-    // Re-draw background & previous dry layers
-    this.dryCtx.fillStyle = '#f8f6f0';
+    this.dryCtx.fillStyle = '#f5f2eb'; // Warm watercolor paper tone
     this.dryCtx.fillRect(0, 0, this.width, this.height);
     this.dryCtx.drawImage(tempCanvas, 0, 0, this.width, this.height);
   }
 
   clear() {
     this.blobs = [];
-    this.dryCtx.fillStyle = '#f8f6f0';
+    this.dryCtx.fillStyle = '#f5f2eb';
     this.dryCtx.fillRect(0, 0, this.width, this.height);
     this.ctx.clearRect(0, 0, this.width, this.height);
   }
@@ -305,11 +332,13 @@ export class WatercolorEngine {
       const interpX = this.lastStrokeX + (this.brushX - this.lastStrokeX) * t;
       const interpY = this.lastStrokeY + (this.brushY - this.lastStrokeY) * t;
       
-      const count = clarity < 0.6 ? 2 : 1; 
-      
+      const vx = (this.brushX - this.lastStrokeX) / (steps || 1);
+      const vy = (this.brushY - this.lastStrokeY) / (steps || 1);
+      const count = clarity < 0.6 ? 2 : 1;
+
       for (let i = 0; i < count; i++) {
-        const offsetX = (Math.random() - 0.5) * (initialRadius * 0.4);
-        const offsetY = (Math.random() - 0.5) * (initialRadius * 0.4);
+        const offsetX = (Math.random() - 0.5) * (initialRadius * 0.45);
+        const offsetY = (Math.random() - 0.5) * (initialRadius * 0.45);
         
         const blob = new WatercolorBlob(
           interpX + offsetX,
@@ -317,8 +346,9 @@ export class WatercolorEngine {
           color.r,
           color.g,
           color.b,
-          initialRadius * (0.7 + Math.random() * 0.5),
-          1.0,
+          initialRadius * (0.8 + Math.random() * 0.4),
+          vx,
+          vy,
           centroid
         );
         this.blobs.push(blob);
